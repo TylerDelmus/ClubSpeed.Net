@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 14
+VisualStudioVersion = 14.0.25123.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClubSpeed.Net", "ClubSpeed.Net\ClubSpeed.Net.csproj", "{310ABCAB-7F7E-4E4E-AFFA-28C8468C8224}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test", "Test\Test.csproj", "{89C3AB8E-BD4E-43A1-B13B-A73DAA3DD248}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{310ABCAB-7F7E-4E4E-AFFA-28C8468C8224}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{310ABCAB-7F7E-4E4E-AFFA-28C8468C8224}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{310ABCAB-7F7E-4E4E-AFFA-28C8468C8224}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{310ABCAB-7F7E-4E4E-AFFA-28C8468C8224}.Release|Any CPU.Build.0 = Release|Any CPU
+		{89C3AB8E-BD4E-43A1-B13B-A73DAA3DD248}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{89C3AB8E-BD4E-43A1-B13B-A73DAA3DD248}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{89C3AB8E-BD4E-43A1-B13B-A73DAA3DD248}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{89C3AB8E-BD4E-43A1-B13B-A73DAA3DD248}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
