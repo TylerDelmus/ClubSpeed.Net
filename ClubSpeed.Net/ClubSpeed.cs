@@ -11,7 +11,7 @@ namespace ClubSpeed.Net
 {
     public static class ClubSpeedAustin
     {
-        public static List<int> GetHeatRacerIds(int heatNo)
+        public static List<int> GetRacerIdsForHeat(int heatNo)
         {
             string url = string.Format("https://k1austin.clubspeedtiming.com/sp_center/HeatDetails.aspx?HeatNo={0}", heatNo);
             string html = new WebClient().DownloadString(url);
