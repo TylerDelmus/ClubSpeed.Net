@@ -7,25 +7,38 @@ using ClubSpeed.Net;
 
 namespace Test
 {
-    class Program
+    public class Program
     {
         private static SQLiteDatabase _database;
 
-        static void Main(string[] args)
-        { 
+        private static void Main(string[] args)
+        {
+            //This assumes a SQLite database with the following tables exists during these tests.
+            //CREATE TABLE "Racers"("Id" Integer PRIMARY KEY NOT NULL, "RacerName" Text);
+            //CREATE TABLE "Races"("HeatNo" Integer, "CustId" Integer, "Kart" Integer, "BestLap" Real, "DateTime" Text);
             _database = new SQLiteDatabase(@"Data Source = C:\Users\Delmus\Documents\Visual Studio 2017\WebSites\ATXKarts\Bin\RaceDatabase");
 
+            ClubSpeedAustinLive clubSpeedMonitor = new ClubSpeedAustinLive();
+            clubSpeedMonitor.OnUpdate += ClubSpeedMonitor_OnUpdate;
+            clubSpeedMonitor.StartPolling();
+
             //RaceHistoryTest(107184, 121247);
-            KartInfoTest();
+            //KartInfoTest();
 
             Console.WriteLine("Done");
             Console.ReadLine();
         }
 
+        private static void ClubSpeedMonitor_OnUpdate(LiveRaceInfo raceInfo)
+        {
+            Console.WriteLine(string.Format("Race Type: {0}, Racers: {1}, Laps: {2}, HeatNo: {3}", raceInfo.HeatTypeName, raceInfo.ScoreboardData.Count, raceInfo.LapsLeft, raceInfo.ScoreboardData[0].HeatNo));
+        }
+
         private static void KartInfoTest()
         {
-            DataTable test = _database.GetDataTable(string.Format("SELECT Kart, RacerName, MIN(BestLap) AS BestLap, AVG(BestLap) AS AvgLap, DateTime FROM Races INNER JOIN Racers ON Races.CustId = Racers.Id GROUP BY Kart WHERE;", DateTime.Now.Subtract(TimeSpan.FromDays(7)).ToString("G")));
-            foreach (DataRow row in test.Rows)
+            DataTable data = _database.GetDataTable(string.Format("SELECT Kart, RacerName, MIN(BestLap) AS BestLap, AVG(BestLap) AS AvgLap, DateTime FROM Races INNER JOIN Racers ON Races.CustId = Racers.Id GROUP BY Kart WHERE;", DateTime.Now.Subtract(TimeSpan.FromDays(7)).ToString("G")));
+
+            foreach (DataRow row in data.Rows)
             {
                 Console.WriteLine("Kart - {0} || {1} || {2} || {3} || {4}", row["Kart"], row["RacerName"], row["BestLap"], row["AvgLap"], row["DateTime"]);
             }
@@ -65,13 +78,20 @@ namespace Test
         {
             Console.WriteLine("Processing racer {0} races {1}", racer.CustomerId, racer.Races.Count);
 
-            _database.ExecuteNonQuery(string.Format("REPLACE INTO Racers VALUES('{0}', '{1}');", racer.CustomerId, racer.RacerName.Replace("'", "''")));
+            //Escape any single quotes that might appear in someone's name.
+            string racerName = racer.RacerName.Replace("'", "''");
+
+            //Add the racer info if they do not already exist.
+            _database.ExecuteNonQuery(string.Format("REPLACE INTO Racers VALUES('{0}', '{1}');", racer.CustomerId, racerName));
 
             foreach(RaceResult race in racer.Races)
             {
-               // if(race.Time.Year == DateTime.Now.Year)
+                //TODO: Properly handle the DateTime field to only return results within a certain time frame.
+                //if(race.Time.Year == DateTime.Now.Year)
                     _database.ExecuteNonQuery(string.Format("INSERT INTO Races SELECT '{0}', '{1}', '{2}', '{3}', '{4}' WHERE NOT EXISTS (SELECT 1 FROM Races WHERE HeatNo={0} AND CustId={1});", race.HeatNo, racer.CustomerId, race.Kart, race.BestLap, race.Time));
 
+                //Slow down writes to the database as sending them too quickly causes problems.
+                //Possibly combine it into a single large query?
                 Thread.Sleep(10);
             }
         }

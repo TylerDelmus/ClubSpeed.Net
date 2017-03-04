@@ -4,14 +4,15 @@ namespace System.Data.SQLite
 {
     public class SQLiteDatabase
     {
-        String dbConnection;
-        object _lock = new object();
+        private String _dbConnection;
+        private object _lock = new object();
+
         /// <summary>
         ///     Default Constructor for SQLiteDatabase Class.
         /// </summary>
         public SQLiteDatabase(string dbConn)
         {
-            dbConnection = dbConn;
+            _dbConnection = dbConn;
         }
 
         /// <summary>
@@ -24,7 +25,7 @@ namespace System.Data.SQLite
             DataTable dt = new DataTable();
             try
             {
-                SQLiteConnection cnn = new SQLiteConnection(dbConnection);
+                SQLiteConnection cnn = new SQLiteConnection(_dbConnection);
                 cnn.Open();
                 SQLiteCommand mycommand = new SQLiteCommand(cnn);
                 mycommand.CommandText = sql;
@@ -50,7 +51,7 @@ namespace System.Data.SQLite
             {
                 int rowsUpdated;
 
-                using (SQLiteConnection cnn = new SQLiteConnection(dbConnection))
+                using (SQLiteConnection cnn = new SQLiteConnection(_dbConnection))
                 {
                     cnn.Open();
                     SQLiteCommand mycommand = new SQLiteCommand(cnn);
@@ -74,7 +75,7 @@ namespace System.Data.SQLite
             lock (_lock)
             {
                 string result = "";
-                using (SQLiteConnection cnn = new SQLiteConnection(dbConnection))
+                using (SQLiteConnection cnn = new SQLiteConnection(_dbConnection))
                 {
                     cnn.Open();
                     SQLiteCommand mycommand = new SQLiteCommand(cnn);
