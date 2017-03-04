@@ -69,8 +69,7 @@ namespace ClubSpeed.Net
         {
             HttpResponseMessage response = _client.GetAsync("https://k1austin.clubspeedtiming.com/sp_center/signalr/negotiate").Result;
 
-            if (response.Headers.Location != null && 
-                response.Headers.Location.ToString().Contains("https://k1austin.clubspeedtiming.com/sp_center/ServerError.html"))
+            if (IsServerError(response))
                 throw new Exception("Negotiation failed with a server error.");
 
             if (!response.IsSuccessStatusCode)
@@ -94,8 +93,7 @@ namespace ClubSpeed.Net
             FormUrlEncodedContent content = new FormUrlEncodedContent(postParams);
             HttpResponseMessage response = _client.PostAsync(url, content).Result;
 
-            if (response.Headers.Location != null &&
-                response.Headers.Location.ToString().Contains("https://k1austin.clubspeedtiming.com/sp_center/ServerError.html"))
+            if (IsServerError(response))
                 throw new Exception("Poll failed with a server error.");
 
             if (!response.IsSuccessStatusCode)
@@ -103,6 +101,12 @@ namespace ClubSpeed.Net
 
             string resposecontent = response.Content.ReadAsStringAsync().Result;
             return JsonConvert.DeserializeObject<SignalRResult>(resposecontent);
+        }
+
+        private bool IsServerError(HttpResponseMessage response)
+        {
+            return response.Headers.Location != null &&
+                   response.Headers.Location.ToString().Contains("https://k1austin.clubspeedtiming.com/sp_center/ServerError.html");
         }
     }
 
