@@ -2,14 +2,12 @@
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading;
-using System.Threading.Tasks;
 using Newtonsoft.Json;
 
 namespace ClubSpeed.Net
 {
     public class ClubSpeedAustinLive
     {
-        private const int POLL_INTERVAL = 15000;
         private string _clientId;
         private int _messageId = 0;
         private HttpClient _client;
@@ -25,23 +23,8 @@ namespace ClubSpeed.Net
 
         public void StartPolling()
         {
-            if (string.IsNullOrEmpty(_clientId))
-            {
-                _clientId = Negotiate().ClientId;
-                SignalRResult result = GetSignalRResult("https://k1austin.clubspeedtiming.com/SP_Center/signalr/connect");
-                _messageId = result.MessageId;
-            }
-
             _tokenSource = new CancellationTokenSource();
-
-            Task.Run(async () =>
-            {
-                while (!_tokenSource.IsCancellationRequested)
-                {
-                    Poll();
-                    await Task.Delay(POLL_INTERVAL, _tokenSource.Token);
-                }
-            }, _tokenSource.Token);
+            Negotiate();
         }
 
         public void StopPolling()
@@ -49,11 +32,18 @@ namespace ClubSpeed.Net
             _tokenSource.Cancel();
         }
 
-        private void Poll()
+        private void OnPollResponse(HttpResponseMessage response)
         {
-            SignalRResult result = GetSignalRResult("https://k1austin.clubspeedtiming.com/SP_Center/signalr");
+            if (IsServerError(response))
+                throw new Exception("Poll failed with a server error.");
 
-            foreach(Message msg in result.Messages)
+            if (!response.IsSuccessStatusCode)
+                throw new Exception("Poll failed with status code " + response.StatusCode);
+
+            string resposeContent = response.Content.ReadAsStringAsync().Result;
+            SignalRResult signalRResult = JsonConvert.DeserializeObject<SignalRResult>(resposeContent);
+
+            foreach (Message msg in signalRResult.Messages)
             {
                 foreach (LiveRaceInfo raceInfo in msg.Args) //Pretty sure this always has 1 entry but just in case..
                 {
@@ -62,24 +52,34 @@ namespace ClubSpeed.Net
                 }
             }
 
-            _messageId = result.MessageId;
+            _messageId = signalRResult.MessageId;
+
+            if(!_tokenSource.IsCancellationRequested)
+                Poll("https://k1austin.clubspeedtiming.com/sp_center/signalr");
         }
 
-        private NegotiationResponse Negotiate()
+        private void OnNegotiateResponse(HttpResponseMessage response)
         {
-            HttpResponseMessage response = _client.GetAsync("https://k1austin.clubspeedtiming.com/sp_center/signalr/negotiate").Result;
-
             if (IsServerError(response))
                 throw new Exception("Negotiation failed with a server error.");
 
             if (!response.IsSuccessStatusCode)
                 throw new Exception("Negotiation failed with status code " + response.StatusCode);
 
-            string content = response.Content.ReadAsStringAsync().Result;
-            return JsonConvert.DeserializeObject<NegotiationResponse>(content);
+            string resposeContent = response.Content.ReadAsStringAsync().Result;
+            NegotiationResponse negoResponse = JsonConvert.DeserializeObject<NegotiationResponse>(resposeContent);
+
+            _clientId = negoResponse.ClientId;
+
+            Poll("https://k1austin.clubspeedtiming.com/sp_center/signalr/connect");
         }
 
-        private SignalRResult GetSignalRResult(string url)
+        private void Negotiate()
+        {
+            _client.GetAsync("https://k1austin.clubspeedtiming.com/sp_center/signalr/negotiate").ContinueWith((responseTask) => OnNegotiateResponse(responseTask.Result));
+        }
+
+        private void Poll(string url)
         {
             Dictionary<string, string> postParams = new Dictionary<string, string>()
             {
@@ -91,16 +91,7 @@ namespace ClubSpeed.Net
             };
 
             FormUrlEncodedContent content = new FormUrlEncodedContent(postParams);
-            HttpResponseMessage response = _client.PostAsync(url, content).Result;
-
-            if (IsServerError(response))
-                throw new Exception("Poll failed with a server error.");
-
-            if (!response.IsSuccessStatusCode)
-                throw new Exception("Poll failed with status code " + response.StatusCode);
-
-            string resposecontent = response.Content.ReadAsStringAsync().Result;
-            return JsonConvert.DeserializeObject<SignalRResult>(resposecontent);
+            _client.PostAsync(url, content).ContinueWith((responseTask) => OnPollResponse(responseTask.Result));
         }
 
         private bool IsServerError(HttpResponseMessage response)

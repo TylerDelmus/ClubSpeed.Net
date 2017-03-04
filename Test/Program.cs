@@ -16,7 +16,7 @@ namespace Test
             //This assumes a SQLite database with the following tables exists during these tests.
             //CREATE TABLE "Racers"("Id" Integer PRIMARY KEY NOT NULL, "RacerName" Text);
             //CREATE TABLE "Races"("HeatNo" Integer, "CustId" Integer, "Kart" Integer, "BestLap" Real, "DateTime" Text);
-            _database = new SQLiteDatabase(@"Data Source = C:\Users\Delmus\Documents\Visual Studio 2017\WebSites\ATXKarts\Bin\RaceDatabase");
+            //_database = new SQLiteDatabase(@"Data Source = C:\Users\Delmus\Documents\Visual Studio 2017\WebSites\ATXKarts\Bin\RaceDatabase");
 
             ClubSpeedAustinLive clubSpeedMonitor = new ClubSpeedAustinLive();
             clubSpeedMonitor.OnUpdate += ClubSpeedMonitor_OnUpdate;
@@ -25,12 +25,17 @@ namespace Test
             //RaceHistoryTest(107184, 121247);
             //KartInfoTest();
 
-            Console.WriteLine("Done");
             Console.ReadLine();
         }
 
         private static void ClubSpeedMonitor_OnUpdate(LiveRaceInfo raceInfo)
         {
+            if (raceInfo.ScoreboardData.Count == 0)
+            {
+                Console.WriteLine("No players in current race.");
+                return;
+            }
+
             Console.WriteLine(string.Format("Race Type: {0}, Racers: {1}, Laps: {2}, HeatNo: {3}", raceInfo.HeatTypeName, raceInfo.ScoreboardData.Count, raceInfo.LapsLeft, raceInfo.ScoreboardData[0].HeatNo));
         }
 
@@ -86,7 +91,7 @@ namespace Test
 
             foreach(RaceResult race in racer.Races)
             {
-                //TODO: Properly handle the DateTime field to only return results within a certain time frame.
+                //TODO: Properly handle the DateTime field to only insert races within a certain time frame.
                 //if(race.Time.Year == DateTime.Now.Year)
                     _database.ExecuteNonQuery(string.Format("INSERT INTO Races SELECT '{0}', '{1}', '{2}', '{3}', '{4}' WHERE NOT EXISTS (SELECT 1 FROM Races WHERE HeatNo={0} AND CustId={1});", race.HeatNo, racer.CustomerId, race.Kart, race.BestLap, race.Time));
 
