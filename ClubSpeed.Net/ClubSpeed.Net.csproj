@@ -50,8 +50,6 @@
     <Compile Include="ClubSpeedAustin.cs" />
     <Compile Include="ClubSpeedAustinLive.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="RaceHistory.cs" />
-    <Compile Include="RaceResult.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />

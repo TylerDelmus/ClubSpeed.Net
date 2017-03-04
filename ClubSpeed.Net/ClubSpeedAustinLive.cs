@@ -122,7 +122,7 @@ namespace ClubSpeed.Net
         public string TrackRecord { get; set; }
     }
 
-    public class ScoreboardData
+    public class Racer
     {
         public string CustID { get; set; }
         public string HeatNo { get; set; }
@@ -148,7 +148,7 @@ namespace ClubSpeed.Net
         public string LapsLeft { get; set; }
         public string HeatTypeName { get; set; }
         public List<Winner> Winners { get; set; }
-        public List<ScoreboardData> ScoreboardData { get; set; }
+        public List<Racer> ScoreboardData { get; set; }
         public bool RaceRunning { get; set; }
     }
 

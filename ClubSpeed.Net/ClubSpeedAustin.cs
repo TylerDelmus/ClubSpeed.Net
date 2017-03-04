@@ -48,4 +48,24 @@ namespace ClubSpeed.Net
             return raceHistory;
         }
     }
+
+    public struct RaceResult
+    {
+        public DateTime Time;
+        public int HeatNo;
+        public float BestLap;
+        public int Kart;
+    }
+
+    public class RaceHistory
+    {
+        public string RacerName;
+        public int CustomerId;
+        public List<RaceResult> Races;
+
+        public RaceHistory()
+        {
+            Races = new List<RaceResult>();
+        }
+    }
 }
