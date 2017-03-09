@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading;
+using System.Diagnostics;
 using System.Data;
 using System.Data.SQLite;
 using ClubSpeed.Net;
@@ -10,33 +11,45 @@ namespace Test
     public class Program
     {
         private static SQLiteDatabase _database;
+        private static List<int> _observedHeatNos = new List<int>();
 
         private static void Main(string[] args)
         {
             //This assumes a SQLite database with the following tables exists during these tests.
-            //CREATE TABLE "Racers"("Id" Integer PRIMARY KEY NOT NULL, "RacerName" Text);
-            //CREATE TABLE "Races"("HeatNo" Integer, "CustId" Integer, "Kart" Integer, "BestLap" Real, "DateTime" Text);
-            //_database = new SQLiteDatabase(@"Data Source = C:\Users\Delmus\Documents\Visual Studio 2017\WebSites\ATXKarts\Bin\RaceDatabase");
+            //CREATE TABLE 'Racers'(Id Integer, RacerName Text, UNIQUE(Id) ON CONFLICT REPLACE);
+            //CREATE TABLE 'Races'(HeatNo Integer, CustId Integer, Kart Integer, DateTime Text, UNIQUE(HeatNo, CustId) ON CONFLICT REPLACE);
+            //CREATE TABLE 'Laps'(HeatNo Integer, CustId Integer, Lap Integer, Time Real, UNIQUE(HeatNo, CustId, Lap) ON CONFLICT REPLACE);
+            _database = new SQLiteDatabase(@"Data Source = C:\Users\Delmus\Documents\Visual Studio 2017\WebSites\ATXKarts\Bin\RaceDatabase_New");
 
             ClubSpeedAustinLive clubSpeedMonitor = new ClubSpeedAustinLive();
             clubSpeedMonitor.OnUpdate += ClubSpeedMonitor_OnUpdate;
             clubSpeedMonitor.StartPolling();
 
-            //RaceHistoryTest(107184, 121247);
+            //117748 - Beginning of 2017 - 1/1/2017 10:05 AM
+            //123910 - Marchish
+            //ParseRaceHistory(123905, 125156);
             //KartInfoTest();
 
+            Console.WriteLine("Done");
             Console.ReadLine();
         }
 
         private static void ClubSpeedMonitor_OnUpdate(LiveRaceInfo raceInfo)
         {
             if (raceInfo.ScoreboardData.Count == 0)
-            {
-                Console.WriteLine("No players in current race.");
                 return;
-            }
 
-            Console.WriteLine(string.Format("Race Type: {0}, Racers: {1}, Laps: {2}, HeatNo: {3}", raceInfo.HeatTypeName, raceInfo.ScoreboardData.Count, raceInfo.LapsLeft, raceInfo.ScoreboardData[0].HeatNo));
+            if (raceInfo.RaceRunning)
+                return;
+
+            int heatNo = int.Parse(raceInfo.ScoreboardData[0].HeatNo);
+
+            if (_observedHeatNos.Contains(heatNo))
+                return;
+
+            OnRaceFinished(heatNo);
+
+            _observedHeatNos.Add(heatNo);
         }
 
         private static void KartInfoTest()
@@ -49,56 +62,44 @@ namespace Test
             }
         }
 
-        private static void RaceHistoryTest(int startHeatNo, int endHeatNo)
+        private static void ParseRaceHistory(int startHeatNo, int endHeatNo)
         {
-            List<int> processedIds = new List<int>();
-
             for (int i = startHeatNo; i < endHeatNo; i++)
             {
                 Console.WriteLine("Processing HeatNo: {0}", i);
-
-                try
-                {
-                    List<int> racers = ClubSpeedAustin.GetRacerIdsForHeat(i);
-
-                    foreach (int custId in racers)
-                    {
-                        if (processedIds.Contains(custId))
-                            continue;
-
-                        ProcessRacer(ClubSpeedAustin.GetRaceHistory(custId));
-                        processedIds.Add(custId);
-                    }
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine("Error on heat {0}: {1}", i, e.Message);
-                }
-
-                Thread.Sleep(5);
+                ParseRaceHistory(i);
             }
         }
 
-        private static void ProcessRacer(RaceHistory racer)
+        private static void ParseRaceHistory(int heatNo)
         {
-            Console.WriteLine("Processing racer {0} races {1}", racer.CustomerId, racer.Races.Count);
+            HeatResult heat = ClubSpeedAustin.GetHeatResults(heatNo);
 
-            //Escape any single quotes that might appear in someone's name.
-            string racerName = racer.RacerName.Replace("'", "''");
+            if (heat == null)
+                return;
 
-            //Add the racer info if they do not already exist.
-            _database.ExecuteNonQuery(string.Format("REPLACE INTO Racers VALUES('{0}', '{1}');", racer.CustomerId, racerName));
+            string racersQuery = "INSERT INTO Racers VALUES ";
+            string racesQuery = "INSERT INTO Races VALUES";
+            string lapsQuery = "INSERT INTO Laps VALUES";
 
-            foreach(RaceResult race in racer.Races)
+            for (int i = 0; i < heat.Racers.Count; i++)
             {
-                //TODO: Properly handle the DateTime field to only insert races within a certain time frame.
-                //if(race.Time.Year == DateTime.Now.Year)
-                    _database.ExecuteNonQuery(string.Format("INSERT INTO Races SELECT '{0}', '{1}', '{2}', '{3}', '{4}' WHERE NOT EXISTS (SELECT 1 FROM Races WHERE HeatNo={0} AND CustId={1});", race.HeatNo, racer.CustomerId, race.Kart, race.BestLap, race.Time));
-
-                //Slow down writes to the database as sending them too quickly causes problems.
-                //Possibly combine it into a single large query?
-                Thread.Sleep(10);
+                string racerName = heat.Racers[i].RacerName.Replace("'", "''");
+                racersQuery += string.Format("('{0}', '{1}'){2}", heat.Racers[i].CustId, racerName, (i < heat.Racers.Count - 1) ? "," : ";");
+                racesQuery += string.Format("('{0}', '{1}', '{2}', '{3}'){4}", heat.HeatNo, heat.Racers[i].CustId, heat.Racers[i].Kart, heat.DateTime.ToString("yyyy-MM-dd HH:mm:ss"), (i < heat.Racers.Count - 1) ? "," : ";");
             }
+
+            for (int i = 0; i < heat.Laps.Count; i++)
+            {
+                lapsQuery += string.Format("('{0}', '{1}', '{2}', '{3}'){4}", heat.HeatNo, heat.Laps[i].CustId, heat.Laps[i].LapNum, heat.Laps[i].LapTime, (i < heat.Laps.Count - 1) ? "," : ";");
+            }
+
+            _database.ExecuteNonQuery(racersQuery + racesQuery + lapsQuery);
+        }
+
+        private static void OnRaceFinished(int heatNo)
+        {
+            ParseRaceHistory(heatNo);
         }
     }
 }
